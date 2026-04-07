@@ -11,10 +11,11 @@
 #define INVALID -1
 
 //TLB entry stores page to frame mapping
-typedef struct {
-    int page;
-    int frame;
-} TLBEntry;
+struct TLBEntry {
+    int logical_page;
+    int frame_number;
+    int valid;
+};
 
 //Physical memory & mappings
 static signed char physical_memory[MAX_FRAME_COUNT * PAGE_SIZE];

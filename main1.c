@@ -1,13 +1,28 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define PAGE_SIZE 256
 #define PAGE_TABLE_SIZE 256
 #define TLB_SIZE 16
+#define DEFAULT_FRAME_COUNT 128
+#define MAX_FRAME_COUNT 1024
+#define INVALID -1
+
+
+struct TLBEntry_ {
+    int logical_page;
+    int frame_number;
+    int valid;
+} TLBEntry;
+
 
 int main() {
     FILE *address_file = fopen("addresses.txt", "r");
     FILE *backing_store = fopen("BACKING_STORE.bin", "rb");
+
+    struct tlb_entry tlb[TLB_SIZE];
+    int next_tlb_ptr = 0;
 
     char buffer[10];
     int virtual_address;
@@ -26,7 +41,15 @@ int main() {
         int frame_num = -1;
 
         // 2. TLB Lookup (Logic to be implemented by you)
-        
+
+        // Search TLB
+        for (int i = 0; i < TLB_SIZE; i++) {
+            if (tlb[i].logical_page == page_num) {
+                frame_num = tlb[i].frame_number;
+                tlb_hits++; // Tracking stats is always good!
+                break;
+            }
+        }
         // 3. Page Table Lookup
         if (page_table[page_num] != -1) {
             frame_num = page_table[page_num];
