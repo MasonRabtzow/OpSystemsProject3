@@ -60,15 +60,19 @@ int main(int argc, char *argv[]) {
     int logical_address;
 
 
-    
 
-        // 1. Extract bits 0-15 logic
-        unsigned char page_num = (virtual_address >> 8) & 0xFF;
-        unsigned char offset = virtual_address & 0xFF;
+
+   // Main translation loop
+    while (fgets(buffer, sizeof(buffer), address_file) != NULL) {
+        logical_address = atoi(buffer);
+        total_addresses++;
+
+        // Extract page number and offset
+        int page_num = (logical_address >> 8) & 0xFF;
+        int offset = logical_address & 0xFF;
 
         int frame_num = -1;
-
-        // 2. TLB Lookup (Logic to be implemented by you)
+        int tlb_hit_found = 0;
 
         // Search TLB
         for (int i = 0; i < TLB_SIZE; i++) {
