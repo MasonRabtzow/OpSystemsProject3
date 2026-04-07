@@ -27,8 +27,13 @@ int main(int argc, char *argv[]) {
     FILE *address_file = fopen("addresses.txt", "r");
     FILE *backing_store = fopen("BACKING_STORE.bin", "rb");
 
-    if (address_file == NULL || backing_store == NULL) {
-        printf("Error: Could not open necessary files.\n");
+    // Open output files
+    FILE *out1 = fopen("out1.txt", "w");
+    FILE *out2 = fopen("out2.txt", "w");
+    FILE *out3 = fopen("out3.txt", "w");
+
+    if (address_file == NULL || backing_store == NULL || out1 == NULL || out2 == NULL || out3 == NULL) {
+        printf("Error: Could not open one or more necessary files.\n");
         return 1;
     }
 
@@ -77,7 +82,12 @@ int main(int argc, char *argv[]) {
         int physical_address = (frame_num << 8) | offset;
         int8_t value = physical_memory[frame_num][offset];
 
-        printf("Virtual address: %d Physical address: %d Value: %d\n", logical_address, physical_address, value);
+        //5. Write to output files
+        fprintf(out1, "%d\n", logical_address);
+        fprintf(out2, "%d\n", physical_address);
+        fprintf(out3, "%d\n", value);
+
+        
     }
 
     // Print final statistics
@@ -85,8 +95,12 @@ int main(int argc, char *argv[]) {
     printf("Page-fault rate: %.2f%%\n", ((float)page_faults / total_addresses) * 100);
     printf("TLB hit rate: %.2f%%\n", ((float)tlb_hits / total_addresses) * 100);
 
+
     fclose(address_file);
     fclose(backing_store);
+    fclose(out1);
+    fclose(out2);
+    fclose(out3);
     return 0;
 }
 
