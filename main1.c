@@ -47,6 +47,21 @@ int main(int argc, char *argv[]) {
         page_table[i] = -1; // -1 means not in memory
     }
 
+    // State Variables
+    int next_free_frame = 0;
+    int tlb_pointer = 0; // For FIFO replacement
+    
+    // Statistics
+    int total_addresses = 0;
+    int tlb_hits = 0;
+    int page_faults = 0;
+
+    char buffer[10];
+    int logical_address;
+
+
+    
+
         // 1. Extract bits 0-15 logic
         unsigned char page_num = (virtual_address >> 8) & 0xFF;
         unsigned char offset = virtual_address & 0xFF;
