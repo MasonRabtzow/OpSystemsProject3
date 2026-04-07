@@ -17,15 +17,26 @@ struct TLBEntry_ {
 } TLBEntry;
 
 
-int main() {
-    FILE *address_file = fopen("addresses.txt", "r");
+int main(int argc, char *argv[]) {
+    
+    if (argc != 2) {
+        printf("Usage: %s <addresses.txt>\n", argv[0]);
+        return 1;
+    }
+
+    // Open files
+    FILE *address_file = fopen(argv[1], "r");
     FILE *backing_store = fopen("BACKING_STORE.bin", "rb");
 
-    struct tlb_entry tlb[TLB_SIZE];
-    int next_tlb_ptr = 0;
+    if (address_file == NULL || backing_store == NULL) {
+        printf("Error: Could not open necessary files.\n");
+        return 1;
+    }
 
-    char buffer[10];
-    int virtual_address;
+    // System Data Structures
+    struct TLBEntry tlb[TLB_SIZE];
+    int page_table[PAGE_TABLE_SIZE];
+    int8_t physical_memory[NUM_FRAMES][FRAME_SIZE]; // int8_t handles signed byte values
     
     // Page Table: -1 indicates the page is not in memory
     int page_table[PAGE_TABLE_SIZE];
