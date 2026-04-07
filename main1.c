@@ -105,9 +105,30 @@ int main(int argc, char *argv[]) {
                 next_free_frame++;
             }
 
+        // 4. Update TLB using FIFO
+            tlb[tlb_pointer].logical_page = page_num;
+            tlb[tlb_pointer].frame_number = frame_num;
+            tlb[tlb_pointer].valid = 1;
+            
+            // Move pointer and wrap around if necessary
+            tlb_pointer = (tlb_pointer + 1) % TLB_SIZE;
+        }
+
+        // 5. Calculate Physical Address and Fetch Value
         int physical_address = (frame_num << 8) | offset;
-        printf("Virtual: %d Physical: %d\n", virtual_address & 0xFFFF, physical_address);
+        int8_t value = physical_memory[frame_num][offset];
+
+        printf("Virtual address: %d Physical address: %d Value: %d\n", logical_address, physical_address, value);
     }
+
+    // Print final statistics
+    printf("\n--- Statistics ---\n");
+    printf("Page-fault rate: %.2f%%\n", ((float)page_faults / total_addresses) * 100);
+    printf("TLB hitrate: %.2f%%\n", ((float)tlb_hits / total_addresses) * 100);
+
+    // Clean up
+    fclose(address_file);
+    fclose(backing_store);
 
     return 0;
 }
