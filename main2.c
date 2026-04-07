@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+//Constants for system sizes
 #define PAGE_SIZE 256
 #define PAGE_TABLE_SIZE 256
 #define TLB_SIZE 16
@@ -9,24 +10,28 @@
 #define MAX_FRAME_COUNT 1024
 #define INVALID -1
 
+//TLB entry stores page to frame mapping
 typedef struct {
     int page;
     int frame;
 } TLBEntry;
 
+//Physical memory & mappings
 static signed char physical_memory[MAX_FRAME_COUNT * PAGE_SIZE];
 static int page_table[PAGE_TABLE_SIZE];
 static int frame_to_page[MAX_FRAME_COUNT];
 static TLBEntry tlb[TLB_SIZE];
 
+// Global state/stats
 static int frame_count;
-static int next_free_frame;
-static int next_victim_frame;
+static int next_free_frame; //fills memory
+static int next_victim_frame; //FIFO replacement
 static int tlb_fifo_index;
 static int page_faults;
 static int tlb_hits;
 static int total_addresses;
 
+//Initialize
 static void init_system(int frames) {
     int i;
     frame_count = frames;
@@ -37,6 +42,7 @@ static void init_system(int frames) {
     tlb_hits = 0;
     total_addresses = 0;
 
+    //Mark invalid
     for (i = 0; i < PAGE_TABLE_SIZE; i++) page_table[i] = INVALID;
     for (i = 0; i < frame_count; i++) frame_to_page[i] = INVALID;
     for (i = 0; i < TLB_SIZE; i++) {
@@ -45,6 +51,7 @@ static void init_system(int frames) {
     }
 }
 
+//Linear search TLB
 static int search_tlb(int page) {
     int i;
     for (i = 0; i < TLB_SIZE; i++) {
