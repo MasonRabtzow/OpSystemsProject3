@@ -44,3 +44,11 @@ static void init_system(int frames) {
         tlb[i].frame = INVALID;
     }
 }
+
+static int search_tlb(int page) {
+    int i;
+    for (i = 0; i < TLB_SIZE; i++) {
+        if (tlb[i].page == page) return tlb[i].frame;
+    }
+    return INVALID;
+}
