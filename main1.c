@@ -74,23 +74,36 @@ int main(int argc, char *argv[]) {
         int frame_num = -1;
         int tlb_hit_found = 0;
 
-        // Search TLB
+        // 1. Search TLB
         for (int i = 0; i < TLB_SIZE; i++) {
-            if (tlb[i].logical_page == page_num) {
+            if (tlb[i].valid && tlb[i].logical_page == page_num) {
                 frame_num = tlb[i].frame_number;
-                tlb_hits++; // Tracking stats is always good!
+                tlb_hit_found = 1;
+                tlb_hits++;
                 break;
             }
         }
-        // 3. Page Table Lookup
-        if (page_table[page_num] != -1) {
-            frame_num = page_table[page_num];
-        } else {
-            // 4. Page Fault Handling
-            // Read from backing_store into physical memory...
-            // frame_num = next_available_frame++;
-            // page_table[page_num] = frame_num;
-        }
+
+        // 2. Search Page Table (if TLB Miss)
+        if (!tlb_hit_found) {
+            if (page_table[page_num] != -1) {
+                // Page Table Hit
+                frame_num = page_table[page_num];
+            } else {
+                // 3. Page Fault (Not in memory, read from backing store)
+                page_faults++;
+                
+                // Seek to the correct page in the backing store
+                fseek(backing_store, page_num * PAGE_SIZE, SEEK_SET);
+                
+                // Read the 256-byte page into the next available physical frame
+                fread(physical_memory[next_free_frame], sizeof(int8_t), PAGE_SIZE, backing_store);
+                
+                // Update page table and track the frame
+                frame_num = next_free_frame;
+                page_table[page_num] = frame_num;
+                next_free_frame++;
+            }
 
         int physical_address = (frame_num << 8) | offset;
         printf("Virtual: %d Physical: %d\n", virtual_address & 0xFFFF, physical_address);
