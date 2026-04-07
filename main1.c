@@ -18,7 +18,7 @@ struct TLBEntry_ {
 
 
 int main(int argc, char *argv[]) {
-    
+
     if (argc != 2) {
         printf("Usage: %s <addresses.txt>\n", argv[0]);
         return 1;
@@ -39,11 +39,13 @@ int main(int argc, char *argv[]) {
     int8_t physical_memory[NUM_FRAMES][FRAME_SIZE]; // int8_t handles signed byte values
     
     // Page Table: -1 indicates the page is not in memory
-    int page_table[PAGE_TABLE_SIZE];
-    for(int i = 0; i < PAGE_TABLE_SIZE; i++) page_table[i] = -1;
-
-    while (fgets(buffer, sizeof(buffer), address_file) != NULL) {
-        virtual_address = atoi(buffer);
+    // Initialization
+    for (int i = 0; i < TLB_SIZE; i++) {
+        tlb[i].valid = 0;
+    }
+    for (int i = 0; i < PAGE_TABLE_SIZE; i++) {
+        page_table[i] = -1; // -1 means not in memory
+    }
 
         // 1. Extract bits 0-15 logic
         unsigned char page_num = (virtual_address >> 8) & 0xFF;
