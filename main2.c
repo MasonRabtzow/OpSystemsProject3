@@ -59,3 +59,21 @@ static int search_tlb(int page) {
     }
     return INVALID;
 }
+
+// Remove a page from TLB
+static void invalidate_tlb_page(int page) {
+    int i;
+    for (i = 0; i < TLB_SIZE; i++) {
+        if (tlb[i].page == page) {
+            tlb[i].page = INVALID;
+            tlb[i].frame = INVALID;
+        }
+    }
+}
+
+// Add to TLB using FIFO
+static void add_to_tlb(int page, int frame) {
+    tlb[tlb_fifo_index].page = page;
+    tlb[tlb_fifo_index].frame = frame;
+    tlb_fifo_index = (tlb_fifo_index + 1) % TLB_SIZE;
+}
