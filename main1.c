@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Open files
-    FILE *address_file = fopen(argv[1], "r");
+    FILE *address_file = fopen("addresses.txt", "r");
     FILE *backing_store = fopen("BACKING_STORE.bin", "rb");
 
     if (address_file == NULL || backing_store == NULL) {
