@@ -26,3 +26,21 @@ static int tlb_fifo_index;
 static int page_faults;
 static int tlb_hits;
 static int total_addresses;
+
+static void init_system(int frames) {
+    int i;
+    frame_count = frames;
+    next_free_frame = 0;
+    next_victim_frame = 0;
+    tlb_fifo_index = 0;
+    page_faults = 0;
+    tlb_hits = 0;
+    total_addresses = 0;
+
+    for (i = 0; i < PAGE_TABLE_SIZE; i++) page_table[i] = INVALID;
+    for (i = 0; i < frame_count; i++) frame_to_page[i] = INVALID;
+    for (i = 0; i < TLB_SIZE; i++) {
+        tlb[i].page = INVALID;
+        tlb[i].frame = INVALID;
+    }
+}
