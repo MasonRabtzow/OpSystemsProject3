@@ -14,3 +14,15 @@ typedef struct {
     int frame;
 } TLBEntry;
 
+static signed char physical_memory[MAX_FRAME_COUNT * PAGE_SIZE];
+static int page_table[PAGE_TABLE_SIZE];
+static int frame_to_page[MAX_FRAME_COUNT];
+static TLBEntry tlb[TLB_SIZE];
+
+static int frame_count;
+static int next_free_frame;
+static int next_victim_frame;
+static int tlb_fifo_index;
+static int page_faults;
+static int tlb_hits;
+static int total_addresses;
