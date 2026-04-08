@@ -75,6 +75,18 @@ static void add_to_tlb(int page, int frame) {
 }
 
 //choose lru
+static int choose_lru_frame(void) {
+    int i;
+    int victim = 0;
+    int oldest = last_used[0];
+    for (i = 1; i < frame_count; i++) {
+        if (last_used[i] < oldest) {
+            oldest = last_used[i];
+            victim = i;
+        }
+    }
+    return victim;
+}
 
 static int load_page(FILE *backing_store, int page) {
     int frame;
