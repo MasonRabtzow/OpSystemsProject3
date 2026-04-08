@@ -78,3 +78,44 @@ static void add_to_tlb(int page, int frame) {
     tlb[tlb_fifo_index].frame = frame;
     tlb_fifo_index = (tlb_fifo_index + 1) % TLB_SIZE;
 }
+
+// Load page from backing store into memory
+static int load_page(FILE *backing_store, int page) {
+    int frame;
+    long offset = (long) page * PAGE_SIZE; // where page is in file
+
+    // If space available → use free frame
+    if (next_free_frame < frame_count) {
+        frame = next_free_frame;
+        next_free_frame++;
+    } 
+    // Otherwise → replace using FIFO
+    else {
+        int victim_page;
+        frame = next_victim_frame;
+        next_victim_frame = (next_victim_frame + 1) % frame_count;
+
+        // invalidate old mappings
+        victim_page = frame_to_page[frame];
+        if (victim_page != INVALID) {
+            page_table[victim_page] = INVALID;
+            invalidate_tlb_page(victim_page);
+        }
+    }
+
+    // Read page from backing store into memory
+    if (fseek(backing_store, offset, SEEK_SET) != 0) {
+        perror("fseek");
+        exit(EXIT_FAILURE);
+    }
+    if (fread(&physical_memory[frame * PAGE_SIZE], sizeof(signed char), PAGE_SIZE, backing_store) != PAGE_SIZE) {
+        perror("fread");
+        exit(EXIT_FAILURE);
+    }
+
+    // Update mappings
+    page_table[page] = frame;
+    frame_to_page[frame] = page;
+    page_faults++;
+    return frame;
+}
