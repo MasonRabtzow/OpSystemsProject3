@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-//Constants for system sizes
 #define PAGE_SIZE 256
 #define PAGE_TABLE_SIZE 256
 #define TLB_SIZE 16
@@ -118,4 +117,104 @@ static int load_page(FILE *backing_store, int page) {
     frame_to_page[frame] = page;
     page_faults++;
     return frame;
+}
+
+int main(int argc, char *argv[]) {
+    FILE *address_file;
+    FILE *backing_store;
+    FILE *out1;
+    FILE *out2;
+    FILE *out3;
+    int logical_address;
+    int frames = DEFAULT_FRAME_COUNT;
+
+    // Check args
+    if (argc != 2 && argc != 3) {
+        fprintf(stderr, "Usage: %s addresses.txt [frame_count]\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    // Optional frame count input
+    if (argc == 3) {
+        frames = atoi(argv[2]);
+        if (frames <= 0 || frames > MAX_FRAME_COUNT) {
+            fprintf(stderr, "frame_count must be between 1 and %d\n", MAX_FRAME_COUNT);
+            return EXIT_FAILURE;
+        }
+    }
+
+    // Open input + backing store
+    address_file = fopen(argv[1], "r");
+    if (address_file == NULL) {
+        perror("addresses file");
+        return EXIT_FAILURE;
+    }
+
+    backing_store = fopen("BACKING_STORE.bin", "rb");
+    if (backing_store == NULL) {
+        perror("BACKING_STORE.bin");
+        fclose(address_file);
+        return EXIT_FAILURE;
+    }
+
+    // Output files (logical, physical, value)
+    out1 = fopen("out1.txt", "w");
+    out2 = fopen("out2.txt", "w");
+    out3 = fopen("out3.txt", "w");
+
+    init_system(frames);
+
+    // Main translation loop
+    while (fscanf(address_file, "%d", &logical_address) == 1) {
+
+        // Extract page + offset
+        int masked_address = logical_address & 0xFFFF;
+        int page = (masked_address >> 8) & 0xFF;
+        int offset = masked_address & 0xFF;
+
+        int frame = search_tlb(page); // check TLB first
+        int physical_address;
+        int value;
+
+        total_addresses++;
+
+        if (frame != INVALID) {
+            tlb_hits++; // fast access
+        } else {
+            frame = page_table[page];
+
+            // page fault if not in memory
+            if (frame == INVALID) {
+                frame = load_page(backing_store, page);
+            }
+
+            add_to_tlb(page, frame); // update TLB
+        }
+
+        // compute final physical address
+        physical_address = (frame * PAGE_SIZE) + offset;
+        value = physical_memory[physical_address];
+
+        // write outputs
+        fprintf(out1, "%d\n", masked_address);
+        fprintf(out2, "%d\n", physical_address);
+        fprintf(out3, "%d\n", value);
+    }
+
+    // Print stats
+    printf("Frame Count = %d\n", frames);
+    printf("Number of Translated Addresses = %d\n", total_addresses);
+    printf("Page Faults = %d\n", page_faults);
+    printf("Page Fault Rate = %.3f\n", total_addresses ? (double) page_faults / total_addresses : 0.0);
+    printf("TLB Hits = %d\n", tlb_hits);
+    printf("TLB Hit Rate = %.3f\n", total_addresses ? (double) tlb_hits / total_addresses : 0.0);
+
+    // Cleanup
+    fclose(address_file);
+    fclose(backing_store);
+    fclose(out1);
+    fclose(out2);
+    fclose(out3);
+
+    return EXIT_SUCCESS;
 }
