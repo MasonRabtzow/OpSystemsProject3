@@ -6,7 +6,6 @@
 #define PAGE_TABLE_SIZE 256
 #define TLB_SIZE 16
 #define DEFAULT_FRAME_COUNT 128
-#define MAX_FRAME_COUNT 1024
 #define INVALID -1
 
 // TLB entry stores page to frame mapping
@@ -17,9 +16,9 @@ typedef struct TLBEntry {
 } TLBEntry;
 
 // Physical memory & mappings
-static signed char physical_memory[MAX_FRAME_COUNT * PAGE_SIZE];
+static signed char physical_memory[DEFAULT_FRAME_COUNT * PAGE_SIZE];
 static int page_table[PAGE_TABLE_SIZE];
-static int frame_to_page[MAX_FRAME_COUNT];
+static int frame_to_page[DEFAULT_FRAME_COUNT];
 static TLBEntry tlb[TLB_SIZE];
 
 // Global state/stats
