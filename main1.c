@@ -24,7 +24,7 @@ int resolve_page(int page_num, int page_table[], int8_t physical_memory[][FRAME_
 
 // --- Main Execution ---
 int main(int argc, char *argv[]) {
-    FILE *address_file = fopen("addresses.txt", "r");
+    FILE *address_file = fopen(argv[1], "r");
     FILE *backing_store = fopen("BACKING_STORE.bin", "rb");
 
     // Open output files
