@@ -130,17 +130,9 @@ int main(int argc, char *argv[]) {
     int logical_address;
     int frames = DEFAULT_FRAME_COUNT;
 
-    if (argc != 2 && argc != 3) {
-        fprintf(stderr, "Usage: %s addresses.txt [frame_count]\n", argv[0]);
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s addresses.txt\n", argv[0]);
         return EXIT_FAILURE;
-    }
-
-    if (argc == 3) {
-        frames = atoi(argv[2]);
-        if (frames <= 0 || frames > MAX_FRAME_COUNT) {
-            fprintf(stderr, "frame_count must be between 1 and %d\n", MAX_FRAME_COUNT);
-            return EXIT_FAILURE;
-        }
     }
 
     address_file = fopen(argv[1], "r");

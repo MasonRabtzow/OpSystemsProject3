@@ -93,7 +93,7 @@ static int load_page(FILE *backing_store, int page) {
         frame = next_free_frame;
         next_free_frame++;
     }
-    // Otherwise -> replace using FIFO
+    // Otherwise, replace using FIFO
     else {
         int victim_page;
         frame = next_victim_frame;
@@ -134,18 +134,9 @@ int main(int argc, char *argv[]) {
     int frames = DEFAULT_FRAME_COUNT;
 
     // Check args
-    if (argc != 2 && argc != 3) {
-        fprintf(stderr, "Usage: %s addresses.txt [frame_count]\n", argv[0]);
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s addresses.txt\n", argv[0]);
         return EXIT_FAILURE;
-    }
-
-    // Optional frame count input
-    if (argc == 3) {
-        frames = atoi(argv[2]);
-        if (frames <= 0 || frames > MAX_FRAME_COUNT) {
-            fprintf(stderr, "frame_count must be between 1 and %d\n", MAX_FRAME_COUNT);
-            return EXIT_FAILURE;
-        }
     }
 
     // Open input + backing store
@@ -212,7 +203,6 @@ int main(int argc, char *argv[]) {
     printf("TLB Hits = %d\n", tlb_hits);
     printf("TLB Hit Rate = %.3f\n", total_addresses ? (double) tlb_hits / total_addresses : 0.0);
 
-    // Cleanup
     fclose(address_file);
     fclose(backing_store);
     fclose(out1);
