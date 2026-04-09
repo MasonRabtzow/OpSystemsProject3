@@ -9,14 +9,14 @@
 #define MAX_FRAME_COUNT 1024
 #define INVALID -1
 
-//TLB entry stores page to frame mapping
-struct TLBEntry {
-    int logical_page;
-    int frame_number;
+// TLB entry stores page to frame mapping
+typedef struct TLBEntry {
+    int page;
+    int frame;
     int valid;
-};
+} TLBEntry;
 
-//Physical memory & mappings
+// Physical memory & mappings
 static signed char physical_memory[MAX_FRAME_COUNT * PAGE_SIZE];
 static int page_table[PAGE_TABLE_SIZE];
 static int frame_to_page[MAX_FRAME_COUNT];
@@ -24,14 +24,14 @@ static TLBEntry tlb[TLB_SIZE];
 
 // Global state/stats
 static int frame_count;
-static int next_free_frame; //fills memory
-static int next_victim_frame; //FIFO replacement
+static int next_free_frame;     // fills memory
+static int next_victim_frame;   // FIFO replacement
 static int tlb_fifo_index;
 static int page_faults;
 static int tlb_hits;
 static int total_addresses;
 
-//Initialize
+// Initialize
 static void init_system(int frames) {
     int i;
     frame_count = frames;
@@ -42,20 +42,23 @@ static void init_system(int frames) {
     tlb_hits = 0;
     total_addresses = 0;
 
-    //Mark invalid
+    // Mark invalid
     for (i = 0; i < PAGE_TABLE_SIZE; i++) page_table[i] = INVALID;
     for (i = 0; i < frame_count; i++) frame_to_page[i] = INVALID;
     for (i = 0; i < TLB_SIZE; i++) {
         tlb[i].page = INVALID;
         tlb[i].frame = INVALID;
+        tlb[i].valid = 0;
     }
 }
 
-//Linear search TLB
+// Linear search TLB
 static int search_tlb(int page) {
     int i;
     for (i = 0; i < TLB_SIZE; i++) {
-        if (tlb[i].page == page) return tlb[i].frame;
+        if (tlb[i].valid && tlb[i].page == page) {
+            return tlb[i].frame;
+        }
     }
     return INVALID;
 }
@@ -64,9 +67,10 @@ static int search_tlb(int page) {
 static void invalidate_tlb_page(int page) {
     int i;
     for (i = 0; i < TLB_SIZE; i++) {
-        if (tlb[i].page == page) {
+        if (tlb[i].valid && tlb[i].page == page) {
             tlb[i].page = INVALID;
             tlb[i].frame = INVALID;
+            tlb[i].valid = 0;
         }
     }
 }
@@ -75,20 +79,21 @@ static void invalidate_tlb_page(int page) {
 static void add_to_tlb(int page, int frame) {
     tlb[tlb_fifo_index].page = page;
     tlb[tlb_fifo_index].frame = frame;
+    tlb[tlb_fifo_index].valid = 1;
     tlb_fifo_index = (tlb_fifo_index + 1) % TLB_SIZE;
 }
 
 // Load page from backing store into memory
 static int load_page(FILE *backing_store, int page) {
     int frame;
-    long offset = (long) page * PAGE_SIZE; // where page is in file
+    long offset = (long) page * PAGE_SIZE;
 
-    // If space available → use free frame
+    // If space available -> use free frame
     if (next_free_frame < frame_count) {
         frame = next_free_frame;
         next_free_frame++;
-    } 
-    // Otherwise → replace using FIFO
+    }
+    // Otherwise -> replace using FIFO
     else {
         int victim_page;
         frame = next_victim_frame;
@@ -157,7 +162,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    // Output files (logical, physical, value)
+    // Output files
     out1 = fopen("out1.txt", "w");
     out2 = fopen("out2.txt", "w");
     out3 = fopen("out3.txt", "w");
@@ -166,20 +171,18 @@ int main(int argc, char *argv[]) {
 
     // Main translation loop
     while (fscanf(address_file, "%d", &logical_address) == 1) {
-
-        // Extract page + offset
         int masked_address = logical_address & 0xFFFF;
         int page = (masked_address >> 8) & 0xFF;
         int offset = masked_address & 0xFF;
 
-        int frame = search_tlb(page); // check TLB first
+        int frame = search_tlb(page);
         int physical_address;
         int value;
 
         total_addresses++;
 
         if (frame != INVALID) {
-            tlb_hits++; // fast access
+            tlb_hits++;
         } else {
             frame = page_table[page];
 
@@ -188,7 +191,7 @@ int main(int argc, char *argv[]) {
                 frame = load_page(backing_store, page);
             }
 
-            add_to_tlb(page, frame); // update TLB
+            add_to_tlb(page, frame);
         }
 
         // compute final physical address
