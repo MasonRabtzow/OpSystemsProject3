@@ -9,10 +9,10 @@
 #define NUM_FRAMES 256
 #define INVALID -1
 
-// TLB Entry Structure aligned with main2
+// TLB Entry Structure 
 typedef struct TLBEntry {
-    int page;       // Changed from logical_page
-    int frame;      // Changed from frame_number
+    int page;
+    int frame; 
     int valid;
 } TLBEntry;
 
@@ -20,14 +20,15 @@ typedef struct TLBEntry {
 void init_system(TLBEntry tlb[], int page_table[]);
 int search_tlb(TLBEntry tlb[], int page);
 void update_tlb(TLBEntry tlb[], int page, int frame, int *tlb_fifo_index);
-int resolve_page(int page, int page_table[], int8_t physical_memory[][FRAME_SIZE], 
+int load_page(int page, int page_table[], int8_t physical_memory[][FRAME_SIZE], 
                  int *next_free_frame, FILE *backing_store, int *page_faults);
 
 // --- Main Execution ---
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s <address_file>\n", argv[0]);
-        return 1;
+
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s addresses.txt\n", argv[0]);
+        return EXIT_FAILURE;
     }
 
     FILE *address_file = fopen(argv[1], "r");
@@ -43,14 +44,14 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // System Data Structures using updated types
+    // Physical memory & mappings
     TLBEntry tlb[TLB_SIZE];
     int page_table[PAGE_TABLE_SIZE];
     int8_t physical_memory[NUM_FRAMES][FRAME_SIZE];
 
-    // State Variables & Stats aligned with main2
+    // State Variables & Stats
     int next_free_frame = 0;
-    int tlb_fifo_index = 0; // Changed from tlb_pointer
+    int tlb_fifo_index = 0; 
     int total_addresses = 0;
     int tlb_hits = 0;
     int page_faults = 0;
@@ -58,46 +59,51 @@ int main(int argc, char *argv[]) {
     // Initialize TLB and Page Table
     init_system(tlb, page_table);
 
-    char buffer[10];
     int logical_address;
 
     // Main translation loop
-    while (fgets(buffer, sizeof(buffer), address_file) != NULL) {
-        logical_address = atoi(buffer);
+    while (fscanf(address_file, "%d", &logical_address) == 1) {
         total_addresses++;
 
         // Extract page and offset
-        int page = (logical_address >> 8) & 0xFF; // Changed from page_num
+        int page = (logical_address >> 8) & 0xFF; 
         int offset = logical_address & 0xFF;
 
-        // 1. Try to find the frame in the TLB
-        int frame = search_tlb(tlb, page); // Changed from frame_num
+        // Search TLB
+        int frame = search_tlb(tlb, page); 
 
         if (frame != INVALID) {
             tlb_hits++; // TLB Hit
         } else {
-            // 2. TLB Miss: Check Page Table and handle Page Faults
-            frame = resolve_page(page, page_table, physical_memory, 
-                                 &next_free_frame, backing_store, &page_faults);
+            // 2. Search page table
+            frame = page_table[page];
+
+            if (frame == INVALID) {
+                frame = load_page(page, page_table, physical_memory, 
+                                     &next_free_frame, backing_store, &page_faults);
+            }
             
-            // 3. Update the TLB with the newly found/loaded frame
+            // update TLB
             update_tlb(tlb, page, frame, &tlb_fifo_index);
         }
 
-        // 4. Calculate Physical Address and Fetch Value
+        // compute final physical address
         int physical_address = (frame << 8) | offset;
         int8_t value = physical_memory[frame][offset];
 
-        // 5. Write to output files
+        // Write outputs
         fprintf(out1, "%d\n", logical_address);
         fprintf(out2, "%d\n", physical_address);
         fprintf(out3, "%d\n", value);
     }
 
-    // Print final statistics
+    // Print stats
     printf("\n--- Statistics ---\n");
-    printf("Page-fault rate: %.2f%%\n", ((float)page_faults / total_addresses) * 100);
-    printf("TLB hit rate: %.2f%%\n", ((float)tlb_hits / total_addresses) * 100);
+    printf("Number of Translated Addresses = %d\n", total_addresses);
+    printf("Page Faults = %d\n", page_faults);
+    printf("Page-fault rate: %.3f\n", (float)page_faults / total_addresses);
+    printf("TLB Hits = %d\n", tlb_hits);
+    printf("TLB hit rate: %.3f\n", (float)tlb_hits / total_addresses);
 
     fclose(address_file);
     fclose(backing_store);
@@ -123,42 +129,30 @@ void init_system(TLBEntry tlb[], int page_table[]) {
 int search_tlb(TLBEntry tlb[], int page) {
     for (int i = 0; i < TLB_SIZE; i++) {
         if (tlb[i].valid && tlb[i].page == page) {
-            return tlb[i].frame; // Hit
+            return tlb[i].frame;
         }
     }
-    return INVALID; // Miss
+    return INVALID;
 }
 
 void update_tlb(TLBEntry tlb[], int page, int frame, int *tlb_fifo_index) {
-    // Insert new entry at the current FIFO index
     tlb[*tlb_fifo_index].page = page;
     tlb[*tlb_fifo_index].frame = frame;
     tlb[*tlb_fifo_index].valid = 1;
-    
-    // Move the index forward, wrapping around at TLB_SIZE
     *tlb_fifo_index = (*tlb_fifo_index + 1) % TLB_SIZE;
 }
 
-int resolve_page(int page, int page_table[], int8_t physical_memory[][FRAME_SIZE], 
+int load_page(int page, int page_table[], int8_t physical_memory[][FRAME_SIZE], 
                  int *next_free_frame, FILE *backing_store, int *page_faults) {
     
-    // Check if page is already in memory (Page Table Hit)
-    if (page_table[page] != INVALID) {
-        return page_table[page];
-    }
-    
-    // Page Fault (Not in memory)
+    // Page Fault logic
     (*page_faults)++;
     int frame_to_use = *next_free_frame;
 
-    // Read the 256-byte page from disk into physical memory
     fseek(backing_store, page * PAGE_SIZE, SEEK_SET);
     fread(physical_memory[frame_to_use], sizeof(int8_t), PAGE_SIZE, backing_store);
     
-    // Update the page table to point to the new frame
     page_table[page] = frame_to_use;
-    
-    // Increment the free frame tracker
     (*next_free_frame)++;
 
     return frame_to_use;
