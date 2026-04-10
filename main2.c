@@ -88,7 +88,7 @@ static int load_page(FILE *backing_store, int page) {
     int frame;
     long offset = (long) page * PAGE_SIZE;
 
-    // If space available -> use free frame
+    // If space available, use free frame
     if (next_free_frame < frame_count) {
         frame = next_free_frame;
         next_free_frame++;

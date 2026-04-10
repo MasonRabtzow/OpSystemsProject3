@@ -9,11 +9,13 @@
 #define DEFAULT_FRAME_COUNT 128
 #define INVALID -1
 
+// TLB entry stores page to frame mapping
 typedef struct {
     int page;
     int frame;
 } TLBEntry;
 
+// Physical memory & mappings
 static signed char physical_memory[DEFAULT_FRAME_COUNT * PAGE_SIZE];
 static int page_table[PAGE_TABLE_SIZE];
 static int frame_to_page[DEFAULT_FRAME_COUNT];
@@ -21,6 +23,7 @@ static TLBEntry tlb[TLB_SIZE];
 // For LRU, use a counter to track the last access time of each frame
 static int last_used[DEFAULT_FRAME_COUNT];
 
+// Global state/stats
 static int frame_count;
 static int next_free_frame;
 static int tlb_fifo_index;
@@ -29,6 +32,7 @@ static int tlb_hits;
 static int total_addresses;
 static int access_clock;
 
+// Initialize
 static void init_system(int frames) {
     int i;
     frame_count = frames;
@@ -50,6 +54,7 @@ static void init_system(int frames) {
     }
 }
 
+// Linear search TLB
 static int search_tlb(int page) {
     int i;
     for (i = 0; i < TLB_SIZE; i++) {
@@ -58,6 +63,7 @@ static int search_tlb(int page) {
     return INVALID;
 }
 
+// Remove a page from TLB
 static void invalidate_tlb_page(int page) {
     int i;
     for (i = 0; i < TLB_SIZE; i++) {
@@ -68,13 +74,14 @@ static void invalidate_tlb_page(int page) {
     }
 }
 
+// Add to TLB using FIFO
 static void add_to_tlb(int page, int frame) {
     tlb[tlb_fifo_index].page = page;
     tlb[tlb_fifo_index].frame = frame;
     tlb_fifo_index = (tlb_fifo_index + 1) % TLB_SIZE;
 }
 
-//choose lru
+// Scan frames and return lru
 static int choose_lru_frame(void) {
     int i;
     int victim = 0;
@@ -88,16 +95,22 @@ static int choose_lru_frame(void) {
     return victim;
 }
 
+// Load page from backing store into memory
 static int load_page(FILE *backing_store, int page) {
     int frame;
     long offset = (long) page * PAGE_SIZE;
 
+    // If space available, use free frame
     if (next_free_frame < frame_count) {
         frame = next_free_frame;
         next_free_frame++;
-    } else {
+    } 
+    // Otherwise, replace using LRU
+    else {
         int victim_page;
         frame = choose_lru_frame();
+
+        // invalidate old mappings
         victim_page = frame_to_page[frame];
         if (victim_page != INVALID) {
             page_table[victim_page] = INVALID;
@@ -105,6 +118,7 @@ static int load_page(FILE *backing_store, int page) {
         }
     }
 
+    // Read page from backing store into memory
     if (fseek(backing_store, offset, SEEK_SET) != 0) {
         perror("fseek");
         exit(EXIT_FAILURE);
@@ -114,6 +128,7 @@ static int load_page(FILE *backing_store, int page) {
         exit(EXIT_FAILURE);
     }
 
+    // Update mappings
     page_table[page] = frame;
     frame_to_page[frame] = page;
     last_used[frame] = access_clock;
@@ -130,11 +145,13 @@ int main(int argc, char *argv[]) {
     int logical_address;
     int frames = DEFAULT_FRAME_COUNT;
 
+    // Check args
     if (argc != 2) {
         fprintf(stderr, "Usage: %s addresses.txt\n", argv[0]);
         return EXIT_FAILURE;
     }
 
+    // Open input + backing store
     address_file = fopen(argv[1], "r");
     if (address_file == NULL) {
         perror("addresses file");
@@ -148,6 +165,7 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+    // Output files
     out1 = fopen("out1.txt", "w");
     out2 = fopen("out2.txt", "w");
     out3 = fopen("out3.txt", "w");
@@ -163,6 +181,7 @@ int main(int argc, char *argv[]) {
 
     init_system(frames);
 
+    // Main translation loop
     while (fscanf(address_file, "%d", &logical_address) == 1) {
         int masked_address = logical_address & 0xFFFF;
         int page = (masked_address >> 8) & 0xFF;
@@ -178,21 +197,26 @@ int main(int argc, char *argv[]) {
             tlb_hits++;
         } else {
             frame = page_table[page];
+            
+            // page fault if not in memory
             if (frame == INVALID) {
                 frame = load_page(backing_store, page);
             }
             add_to_tlb(page, frame);
         }
 
+        // compute final physical address
         last_used[frame] = access_clock;
         physical_address = (frame * PAGE_SIZE) + offset;
         value = physical_memory[physical_address];
 
+        // write outputs
         fprintf(out1, "%d\n", masked_address);
         fprintf(out2, "%d\n", physical_address);
         fprintf(out3, "%d\n", value);
     }
 
+    // Print stats
     printf("Frame Count = %d\n", frames);
     printf("Number of Translated Addresses = %d\n", total_addresses);
     printf("Page Faults = %d\n", page_faults);
@@ -205,5 +229,6 @@ int main(int argc, char *argv[]) {
     fclose(out1);
     fclose(out2);
     fclose(out3);
+    
     return EXIT_SUCCESS;
 }
